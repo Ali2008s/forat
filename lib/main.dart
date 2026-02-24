@@ -1,0 +1,72 @@
+// ═══════════════════════════════════════════════════════════════
+//  ForaTV - Main Entry Point
+//  Firebase initialized + Provider state management + Theming
+// ═══════════════════════════════════════════════════════════════
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'providers/app_provider.dart';
+import 'utils/app_constants.dart';
+import 'screens/splash_screen.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Set Status Bar style
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ),
+  );
+
+  // Initialize Firebase
+  try {
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: "AIzaSyCATn7lwg2x5kxEkfrGpW4UbRlc7KpHEDg",
+        authDomain: "upload-92830.firebaseapp.com",
+        projectId: "upload-92830",
+        storageBucket: "upload-92830.appspot.com",
+        messagingSenderId: "100060804942",
+        appId: "1:100060804942:web:3b7e88d9261d4cb6a4901f",
+        measurementId: "G-1ZGTVPHKL1",
+      ),
+    );
+  } catch (e) {
+    debugPrint('Firebase initialization failed: $e');
+  }
+
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => AppProvider(),
+      child: const ForaTVApp(),
+    ),
+  );
+}
+
+class ForaTVApp extends StatelessWidget {
+  const ForaTVApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ScreenUtilInit(
+      designSize: const Size(360, 690),
+      minTextAdapt: true,
+      splitScreenMode: true,
+      builder: (context, child) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: AppConstants.appName,
+          theme: AppThemes.darkTheme,
+          darkTheme: AppThemes.darkTheme,
+          themeMode: ThemeMode.dark,
+          home: const SplashScreen(),
+        );
+      },
+    );
+  }
+}
