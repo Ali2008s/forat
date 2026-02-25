@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 //  ForaTV - Movies (VOD) Screen
-//  Categories + Movie cards with poster images
+//  Categories + Movie cards + Live Search
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
@@ -19,10 +19,11 @@ class MoviesScreen extends StatefulWidget {
 
 class _MoviesScreenState extends State<MoviesScreen> {
   List<dynamic> _movies = [];
+  List<dynamic> _filteredMovies = [];
   String? _selectedCategory;
   bool _isLoading = false;
   final _searchCtrl = TextEditingController();
-  List<dynamic> _filteredMovies = [];
+  bool _showSearch = false;
 
   @override
   void initState() {
@@ -40,6 +41,7 @@ class _MoviesScreenState extends State<MoviesScreen> {
     setState(() {
       _isLoading = true;
       _selectedCategory = categoryId;
+      _searchCtrl.clear();
     });
     final provider = context.read<AppProvider>();
     _movies = await provider.xtream.getVodStreams(categoryId);
@@ -63,44 +65,91 @@ class _MoviesScreenState extends State<MoviesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final categories = context.watch<AppProvider>().vodCategories;
+    final provider = context.watch<AppProvider>();
+    final categories = provider.vodCategories;
+    final isAr = provider.locale == 'ar';
 
     return Column(
       children: [
-        // Search Bar
+        // Search toggle + Search bar
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.glassBg,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.glassBorder),
-            ),
-            child: TextField(
-              controller: _searchCtrl,
-              onChanged: _filterMovies,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 14,
-              ),
-              decoration: const InputDecoration(
-                prefixIcon: Icon(
-                  Icons.search,
-                  color: AppColors.textMuted,
-                  size: 20,
-                ),
-                hintText: 'بحث عن فيلم...',
-                hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 13),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(vertical: 14),
-              ),
-            ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: _showSearch
+                ? Container(
+                    key: const ValueKey('search'),
+                    decoration: BoxDecoration(
+                      color: AppColors.glassBg,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.glassBorder),
+                    ),
+                    child: TextField(
+                      controller: _searchCtrl,
+                      onChanged: _filterMovies,
+                      autofocus: true,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                      ),
+                      textDirection: TextDirection.ltr,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: AppColors.textMuted,
+                          size: 20,
+                        ),
+                        suffixIcon: IconButton(
+                          icon: const Icon(
+                            Icons.close,
+                            color: AppColors.textMuted,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            _searchCtrl.clear();
+                            _filterMovies('');
+                            setState(() => _showSearch = false);
+                          },
+                        ),
+                        hintText: isAr ? 'بحث عن فيلم...' : 'Search movies...',
+                        hintStyle: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 13,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                        ),
+                      ),
+                    ),
+                  )
+                : Row(
+                    key: const ValueKey('header'),
+                    children: [
+                      Expanded(
+                        child: Text(
+                          isAr ? 'الأفلام' : 'Movies',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => setState(() => _showSearch = true),
+                        icon: const Icon(
+                          Icons.search,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ),
 
-        // Categories
+        // Categories Chips
         SizedBox(
-          height: 45,
+          height: 46,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -108,7 +157,7 @@ class _MoviesScreenState extends State<MoviesScreen> {
             itemBuilder: (ctx, i) {
               if (i == 0)
                 return _buildCategoryChip(
-                  'الكل',
+                  isAr ? 'الكل' : 'All',
                   null,
                   _selectedCategory == null,
                 );
@@ -141,9 +190,9 @@ class _MoviesScreenState extends State<MoviesScreen> {
                         color: AppColors.textMuted.withValues(alpha: 0.3),
                       ),
                       const SizedBox(height: 15),
-                      const Text(
-                        'لا توجد أفلام',
-                        style: TextStyle(
+                      Text(
+                        isAr ? 'لا توجد أفلام' : 'No movies found',
+                        style: const TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 16,
                         ),
@@ -174,11 +223,11 @@ class _MoviesScreenState extends State<MoviesScreen> {
       child: GestureDetector(
         onTap: () => _loadMovies(id),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
           decoration: BoxDecoration(
             gradient: selected ? AppColors.primaryGradient : null,
             color: selected ? null : AppColors.glassBg,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(25),
             border: Border.all(
               color: selected ? Colors.transparent : AppColors.glassBorder,
             ),
@@ -188,7 +237,7 @@ class _MoviesScreenState extends State<MoviesScreen> {
               name,
               style: TextStyle(
                 color: selected ? Colors.white : AppColors.textSecondary,
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
@@ -222,14 +271,13 @@ class _MoviesScreenState extends State<MoviesScreen> {
           Container(
                 decoration: BoxDecoration(
                   color: AppColors.bgCard,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.glassBorder),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Poster
                     Expanded(
                       child: Stack(
                         fit: StackFit.expand,
@@ -238,36 +286,12 @@ class _MoviesScreenState extends State<MoviesScreen> {
                               ? CachedNetworkImage(
                                   imageUrl: poster,
                                   fit: BoxFit.cover,
-                                  placeholder: (_, __) => Container(
-                                    color: AppColors.surface,
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.movie,
-                                        color: AppColors.textMuted,
-                                      ),
-                                    ),
-                                  ),
-                                  errorWidget: (_, __, ___) => Container(
-                                    color: AppColors.surface,
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.movie,
-                                        color: AppColors.textMuted,
-                                      ),
-                                    ),
-                                  ),
+                                  placeholder: (_, __) =>
+                                      _buildPosterPlaceholder(),
+                                  errorWidget: (_, __, ___) =>
+                                      _buildPosterPlaceholder(),
                                 )
-                              : Container(
-                                  color: AppColors.surface,
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.movie,
-                                      color: AppColors.textMuted,
-                                      size: 30,
-                                    ),
-                                  ),
-                                ),
-                          // Rating Badge
+                              : _buildPosterPlaceholder(),
                           if (rating.isNotEmpty &&
                               rating != '0' &&
                               rating != 'null')
@@ -307,7 +331,6 @@ class _MoviesScreenState extends State<MoviesScreen> {
                         ],
                       ),
                     ),
-                    // Title
                     Padding(
                       padding: const EdgeInsets.all(8),
                       child: Text(
@@ -324,8 +347,17 @@ class _MoviesScreenState extends State<MoviesScreen> {
                 ),
               )
               .animate()
-              .fadeIn(delay: Duration(milliseconds: 30 * (index % 15)))
+              .fadeIn(delay: Duration(milliseconds: 50 * (index % 15)))
               .scale(begin: const Offset(0.92, 0.92)),
+    );
+  }
+
+  Widget _buildPosterPlaceholder() {
+    return Container(
+      color: AppColors.surface,
+      child: const Center(
+        child: Icon(Icons.movie, color: AppColors.textMuted, size: 30),
+      ),
     );
   }
 }

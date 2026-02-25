@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 //  ForaTV - Series Screen
-//  Categories + Series cards with seasons/episodes navigation
+//  Categories + Series cards + Seasons/Episodes Navigation + Live Search
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
@@ -19,8 +19,11 @@ class SeriesScreen extends StatefulWidget {
 
 class _SeriesScreenState extends State<SeriesScreen> {
   List<dynamic> _series = [];
+  List<dynamic> _filteredSeries = [];
   String? _selectedCategory;
   bool _isLoading = false;
+  final _searchCtrl = TextEditingController();
+  bool _showSearch = false;
 
   @override
   void initState() {
@@ -28,21 +31,44 @@ class _SeriesScreenState extends State<SeriesScreen> {
     _loadSeries();
   }
 
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadSeries([String? categoryId]) async {
     setState(() {
       _isLoading = true;
       _selectedCategory = categoryId;
+      _searchCtrl.clear();
     });
-    _series = await context.read<AppProvider>().xtream.getSeries(categoryId);
+    final provider = context.read<AppProvider>();
+    _series = await provider.xtream.getSeries(categoryId);
+    _filteredSeries = _series;
     setState(() => _isLoading = false);
+  }
+
+  void _filterSeries(String query) {
+    setState(() {
+      _filteredSeries = query.isEmpty
+          ? _series
+          : _series
+                .where(
+                  (s) => (s['name'] ?? '').toString().toLowerCase().contains(
+                    query.toLowerCase(),
+                  ),
+                )
+                .toList();
+    });
   }
 
   void _openSeries(Map<String, dynamic> series) async {
     final seriesId = series['series_id']?.toString() ?? '';
     final name = series['name'] ?? '';
     final cover = series['cover'] ?? '';
+    final provider = context.read<AppProvider>();
 
-    // Show loading
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -51,51 +77,127 @@ class _SeriesScreenState extends State<SeriesScreen> {
       ),
     );
 
-    final info = await context.read<AppProvider>().xtream.getSeriesInfo(
-      seriesId,
-    );
+    final info = await provider.xtream.getSeriesInfo(seriesId);
     if (!mounted) return;
     Navigator.pop(context); // Close loading
 
     if (info == null) return;
-
     final seasons = info['episodes'] as Map<String, dynamic>? ?? {};
 
-    // Show seasons/episodes bottom sheet
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.bgCard,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (ctx) => _SeasonsSheet(
         title: name,
         cover: cover,
         seasons: seasons,
-        xtream: context.read<AppProvider>().xtream,
+        xtream: provider.xtream,
+        isAr: provider.locale == 'ar',
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final categories = context.watch<AppProvider>().seriesCategories;
+    final provider = context.watch<AppProvider>();
+    final categories = provider.seriesCategories;
+    final isAr = provider.locale == 'ar';
 
     return Column(
       children: [
-        // Categories
+        // Search toggle + Search bar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: _showSearch
+                ? Container(
+                    key: const ValueKey('search'),
+                    decoration: BoxDecoration(
+                      color: AppColors.glassBg,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.glassBorder),
+                    ),
+                    child: TextField(
+                      controller: _searchCtrl,
+                      onChanged: _filterSeries,
+                      autofocus: true,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 14,
+                      ),
+                      textDirection: TextDirection.ltr,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: AppColors.textMuted,
+                          size: 20,
+                        ),
+                        suffixIcon: IconButton(
+                          icon: const Icon(
+                            Icons.close,
+                            color: AppColors.textMuted,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            _searchCtrl.clear();
+                            _filterSeries('');
+                            setState(() => _showSearch = false);
+                          },
+                        ),
+                        hintText: isAr ? 'بحث عن مسلسل...' : 'Search series...',
+                        hintStyle: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 13,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                        ),
+                      ),
+                    ),
+                  )
+                : Row(
+                    key: const ValueKey('header'),
+                    children: [
+                      Expanded(
+                        child: Text(
+                          isAr ? 'المسلسلات' : 'Series',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => setState(() => _showSearch = true),
+                        icon: const Icon(
+                          Icons.search,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+
+        // Categories Chips
         SizedBox(
-          height: 50,
+          height: 46,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: categories.length + 1,
             itemBuilder: (ctx, i) {
               if (i == 0)
-                return _buildChip('الكل', null, _selectedCategory == null);
+                return _buildCategoryChip(
+                  isAr ? 'الكل' : 'All',
+                  null,
+                  _selectedCategory == null,
+                );
               final cat = categories[i - 1];
-              return _buildChip(
+              return _buildCategoryChip(
                 cat['category_name'] ?? '',
                 cat['category_id']?.toString(),
                 _selectedCategory == cat['category_id']?.toString(),
@@ -103,13 +205,16 @@ class _SeriesScreenState extends State<SeriesScreen> {
             },
           ),
         ),
-        const SizedBox(height: 10),
+
+        const SizedBox(height: 8),
+
+        // Series Grid
         Expanded(
           child: _isLoading
               ? const Center(
                   child: CircularProgressIndicator(color: AppColors.primary),
                 )
-              : _series.isEmpty
+              : _filteredSeries.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -120,9 +225,9 @@ class _SeriesScreenState extends State<SeriesScreen> {
                         color: AppColors.textMuted.withValues(alpha: 0.3),
                       ),
                       const SizedBox(height: 15),
-                      const Text(
-                        'لا توجد مسلسلات',
-                        style: TextStyle(
+                      Text(
+                        isAr ? 'لا توجد مسلسلات' : 'No series found',
+                        style: const TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 16,
                         ),
@@ -138,15 +243,16 @@ class _SeriesScreenState extends State<SeriesScreen> {
                     crossAxisSpacing: 10,
                     childAspectRatio: 0.55,
                   ),
-                  itemCount: _series.length,
-                  itemBuilder: (ctx, i) => _buildSeriesCard(_series[i], i),
+                  itemCount: _filteredSeries.length,
+                  itemBuilder: (ctx, i) =>
+                      _buildSeriesCard(_filteredSeries[i], i),
                 ),
         ),
       ],
     );
   }
 
-  Widget _buildChip(String name, String? id, bool selected) {
+  Widget _buildCategoryChip(String name, String? id, bool selected) {
     return Padding(
       padding: const EdgeInsets.only(left: 8),
       child: GestureDetector(
@@ -187,7 +293,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
           Container(
                 decoration: BoxDecoration(
                   color: AppColors.bgCard,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.glassBorder),
                 ),
                 clipBehavior: Clip.antiAlias,
@@ -202,35 +308,12 @@ class _SeriesScreenState extends State<SeriesScreen> {
                               ? CachedNetworkImage(
                                   imageUrl: cover,
                                   fit: BoxFit.cover,
-                                  placeholder: (_, __) => Container(
-                                    color: AppColors.surface,
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.tv,
-                                        color: AppColors.textMuted,
-                                      ),
-                                    ),
-                                  ),
-                                  errorWidget: (_, __, ___) => Container(
-                                    color: AppColors.surface,
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.tv,
-                                        color: AppColors.textMuted,
-                                      ),
-                                    ),
-                                  ),
+                                  placeholder: (_, __) =>
+                                      _buildPosterPlaceholder(),
+                                  errorWidget: (_, __, ___) =>
+                                      _buildPosterPlaceholder(),
                                 )
-                              : Container(
-                                  color: AppColors.surface,
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.tv,
-                                      color: AppColors.textMuted,
-                                      size: 30,
-                                    ),
-                                  ),
-                                ),
+                              : _buildPosterPlaceholder(),
                           if (rating.isNotEmpty &&
                               rating != '0' &&
                               rating != 'null')
@@ -286,8 +369,17 @@ class _SeriesScreenState extends State<SeriesScreen> {
                 ),
               )
               .animate()
-              .fadeIn(delay: Duration(milliseconds: 30 * (index % 15)))
+              .fadeIn(delay: Duration(milliseconds: 50 * (index % 15)))
               .scale(begin: const Offset(0.92, 0.92)),
+    );
+  }
+
+  Widget _buildPosterPlaceholder() {
+    return Container(
+      color: AppColors.surface,
+      child: const Center(
+        child: Icon(Icons.tv, color: AppColors.textMuted, size: 30),
+      ),
     );
   }
 }
@@ -298,12 +390,14 @@ class _SeasonsSheet extends StatefulWidget {
   final String cover;
   final Map<String, dynamic> seasons;
   final dynamic xtream;
+  final bool isAr;
 
   const _SeasonsSheet({
     required this.title,
     required this.cover,
     required this.seasons,
     required this.xtream,
+    required this.isAr,
   });
 
   @override
@@ -331,37 +425,79 @@ class _SeasonsSheetState extends State<_SeasonsSheet> {
       minChildSize: 0.4,
       expand: false,
       builder: (_, controller) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.bgCard,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border(top: BorderSide(color: AppColors.glassBorder)),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.5),
+              blurRadius: 20,
+            ),
+          ],
         ),
         child: Column(
           children: [
-            // Handle
             Container(
               width: 40,
               height: 4,
               margin: const EdgeInsets.only(top: 12),
               decoration: BoxDecoration(
-                color: AppColors.textMuted,
+                color: AppColors.textMuted.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            // Title
             Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                widget.title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: widget.cover.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: widget.cover,
+                            width: 50,
+                            height: 70,
+                            fit: BoxFit.cover,
+                          )
+                        : Container(
+                            width: 50,
+                            height: 70,
+                            color: AppColors.glassBg,
+                            child: const Icon(Icons.tv),
+                          ),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.title,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            height: 1.2,
+                          ),
+                        ),
+                        Text(
+                          '${widget.seasons.length} ${widget.isAr ? "مواسم" : "Seasons"}',
+                          style: const TextStyle(
+                            color: AppColors.accent,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
+            const Divider(height: 1, color: AppColors.glassBorder),
+            const SizedBox(height: 10),
             // Season Tabs
             SizedBox(
-              height: 40,
+              height: 44,
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -373,8 +509,8 @@ class _SeasonsSheetState extends State<_SeasonsSheet> {
                           onTap: () => setState(() => _selectedSeason = s),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 8,
+                              horizontal: 20,
+                              vertical: 10,
                             ),
                             decoration: BoxDecoration(
                               gradient: _selectedSeason == s
@@ -383,7 +519,7 @@ class _SeasonsSheetState extends State<_SeasonsSheet> {
                               color: _selectedSeason == s
                                   ? null
                                   : AppColors.glassBg,
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(25),
                               border: Border.all(
                                 color: _selectedSeason == s
                                     ? Colors.transparent
@@ -391,12 +527,15 @@ class _SeasonsSheetState extends State<_SeasonsSheet> {
                               ),
                             ),
                             child: Text(
-                              'الموسم $s',
+                              '${widget.isAr ? "الموسم" : "Season"} $s',
                               style: TextStyle(
                                 color: _selectedSeason == s
                                     ? Colors.white
                                     : AppColors.textSecondary,
-                                fontSize: 12,
+                                fontSize: 13,
+                                fontWeight: _selectedSeason == s
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
                               ),
                             ),
                           ),
@@ -406,72 +545,88 @@ class _SeasonsSheetState extends State<_SeasonsSheet> {
                     .toList(),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 15),
             // Episodes List
             Expanded(
               child: ListView.builder(
                 controller: controller,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 5,
+                ),
                 itemCount: episodes.length,
                 itemBuilder: (ctx, i) {
                   final ep = episodes[i] as Map<String, dynamic>;
                   final title =
-                      ep['title'] ?? 'الحلقة ${ep['episode_num'] ?? i + 1}';
+                      ep['title'] ??
+                      (widget.isAr
+                          ? 'الحلقة ${ep['episode_num'] ?? i + 1}'
+                          : 'EP ${ep['episode_num'] ?? i + 1}');
                   final epId = ep['id']?.toString() ?? '';
                   final ext = ep['container_extension'] ?? 'mp4';
 
                   return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.glassBg,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.glassBorder),
-                    ),
-                    child: ListTile(
-                      leading: Container(
-                        width: 40,
-                        height: 40,
+                        margin: const EdgeInsets.only(bottom: 10),
                         decoration: BoxDecoration(
-                          gradient: AppColors.primaryGradient,
-                          borderRadius: BorderRadius.circular(10),
+                          color: AppColors.glassBg,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.glassBorder),
                         ),
-                        child: Center(
-                          child: Text(
-                            '${i + 1}',
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 15,
+                            vertical: 5,
+                          ),
+                          leading: Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              gradient: AppColors.primaryGradient,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Text(
+                                '${i + 1}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ),
+                          title: Text(
+                            title,
                             style: const TextStyle(
-                              color: Colors.white,
+                              fontSize: 14,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                        ),
-                      ),
-                      title: Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      trailing: const Icon(
-                        Icons.play_circle_fill,
-                        color: AppColors.primary,
-                        size: 30,
-                      ),
-                      onTap: () {
-                        final url = widget.xtream.getSeriesStreamUrl(epId, ext);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => PlayerScreen(
-                              title: title,
-                              url: url,
-                              isLive: false,
-                            ),
+                          trailing: const Icon(
+                            Icons.play_circle_fill,
+                            color: AppColors.primary,
+                            size: 36,
                           ),
-                        );
-                      },
-                    ),
-                  ).animate().fadeIn(delay: Duration(milliseconds: 50 * i));
+                          onTap: () {
+                            final url = widget.xtream.getSeriesStreamUrl(
+                              epId,
+                              ext,
+                            );
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PlayerScreen(
+                                  title: title,
+                                  url: url,
+                                  isLive: false,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      )
+                      .animate()
+                      .fadeIn(delay: Duration(milliseconds: 50 * (i % 10)))
+                      .slideX(begin: 0.05);
                 },
               ),
             ),
