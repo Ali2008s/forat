@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
 //  ForaTV - Home Screen with Bottom Navigation
-//  Live TV, Movies, Series tabs + notification bar + update dialog
+//  Live TV, Movies, Series, Settings tabs + notification + update
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
@@ -12,7 +12,7 @@ import '../utils/app_constants.dart';
 import 'live_tv_screen.dart';
 import 'movies_screen.dart';
 import 'series_screen.dart';
-import 'login_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,12 +28,12 @@ class _HomeScreenState extends State<HomeScreen> {
     LiveTvScreen(),
     MoviesScreen(),
     SeriesScreen(),
+    SettingsScreen(),
   ];
 
   @override
   void initState() {
     super.initState();
-    // Load categories
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AppProvider>().loadCategories();
     });
@@ -42,12 +42,13 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showUpdateDialog(AppProvider provider) {
     if (_updateDialogShown) return;
     _updateDialogShown = true;
+    final isAr = provider.locale == 'ar';
 
     showDialog(
       context: context,
       barrierDismissible: !provider.forceUpdate,
-      builder: (ctx) => WillPopScope(
-        onWillPop: () async => !provider.forceUpdate,
+      builder: (ctx) => PopScope(
+        canPop: !provider.forceUpdate,
         child: Dialog(
           backgroundColor: AppColors.bgCard,
           shape: RoundedRectangleBorder(
@@ -73,13 +74,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 18),
-                const Text(
-                  'تحديث جديد متوفر!',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                Text(
+                  isAr ? 'تحديث جديد متوفر!' : 'New Update Available!',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'الإصدار ${provider.latestVersion}',
+                  '${isAr ? "الإصدار" : "Version"} ${provider.latestVersion}',
                   style: const TextStyle(color: AppColors.accent, fontSize: 14),
                 ),
                 const SizedBox(height: 15),
@@ -95,9 +99,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'ما الجديد:',
-                          style: TextStyle(
+                        Text(
+                          isAr ? 'ما الجديد:' : "What's new:",
+                          style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
                           ),
@@ -126,16 +130,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       }
                     },
-                    child: const Text('تحديث الآن'),
+                    child: Text(isAr ? 'تحديث الآن' : 'Update Now'),
                   ),
                 ),
                 if (!provider.forceUpdate) ...[
                   const SizedBox(height: 8),
                   TextButton(
                     onPressed: () => Navigator.pop(ctx),
-                    child: const Text(
-                      'لاحقاً',
-                      style: TextStyle(color: AppColors.textMuted),
+                    child: Text(
+                      isAr ? 'لاحقاً' : 'Later',
+                      style: const TextStyle(color: AppColors.textMuted),
                     ),
                   ),
                 ],
@@ -143,7 +147,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 10),
                     child: Text(
-                      'هذا التحديث إجباري ولا يمكن تخطيه',
+                      isAr
+                          ? 'هذا التحديث إجباري ولا يمكن تخطيه'
+                          : 'This update is mandatory',
                       style: TextStyle(
                         fontSize: 11,
                         color: AppColors.danger.withValues(alpha: 0.8),
@@ -162,7 +168,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Consumer<AppProvider>(
       builder: (context, provider, _) {
-        // Check for updates
+        final isAr = provider.locale == 'ar';
+
         if (provider.hasUpdate && !_updateDialogShown) {
           WidgetsBinding.instance.addPostFrameCallback(
             (_) => _showUpdateDialog(provider),
@@ -171,7 +178,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
         return Scaffold(
           body: Container(
-            decoration: const BoxDecoration(gradient: AppColors.bgGradient),
+            decoration: BoxDecoration(
+              gradient: provider.isDarkMode ? AppColors.bgGradient : null,
+              color: provider.isDarkMode ? null : AppColors.bgLightPrimary,
+            ),
             child: Column(
               children: [
                 // Notification Bar
@@ -229,42 +239,27 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     child: Row(
                       children: [
-                        // Welcome
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'مرحباً، ${provider.clientName}',
+                                '${isAr ? "مرحباً" : "Welcome"}, ${provider.clientName}',
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
-                              const Text(
-                                'ماذا تريد أن تشاهد اليوم؟',
-                                style: TextStyle(
+                              Text(
+                                isAr
+                                    ? 'ماذا تريد أن تشاهد اليوم؟'
+                                    : 'What do you want to watch?',
+                                style: const TextStyle(
                                   fontSize: 12,
                                   color: AppColors.textMuted,
                                 ),
                               ),
                             ],
-                          ),
-                        ),
-                        // Logout
-                        IconButton(
-                          onPressed: () async {
-                            await provider.logout();
-                            if (!context.mounted) return;
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (_) => const LoginScreen(),
-                              ),
-                            );
-                          },
-                          icon: const Icon(
-                            Icons.exit_to_app,
-                            color: AppColors.textMuted,
                           ),
                         ),
                       ],
@@ -278,11 +273,26 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // Bottom Navigation
+          // Bottom Navigation (4 tabs)
           bottomNavigationBar: Container(
             decoration: BoxDecoration(
-              color: AppColors.bgCard,
-              border: Border(top: BorderSide(color: AppColors.glassBorder)),
+              color: provider.isDarkMode ? AppColors.bgCard : Colors.white,
+              border: Border(
+                top: BorderSide(
+                  color: provider.isDarkMode
+                      ? AppColors.glassBorder
+                      : Colors.grey.shade200,
+                ),
+              ),
+              boxShadow: provider.isDarkMode
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
             ),
             child: BottomNavigationBar(
               currentIndex: _currentIndex,
@@ -294,19 +304,26 @@ class _HomeScreenState extends State<HomeScreen> {
               type: BottomNavigationBarType.fixed,
               selectedLabelStyle: const TextStyle(
                 fontWeight: FontWeight.w700,
-                fontSize: 12,
+                fontSize: 11,
               ),
-              unselectedLabelStyle: const TextStyle(fontSize: 11),
-              items: const [
+              unselectedLabelStyle: const TextStyle(fontSize: 10),
+              items: [
                 BottomNavigationBarItem(
-                  icon: Icon(Icons.live_tv),
-                  label: 'بث مباشر',
+                  icon: const Icon(Icons.live_tv),
+                  label: isAr ? 'بث مباشر' : 'Live TV',
                 ),
                 BottomNavigationBarItem(
-                  icon: Icon(Icons.movie_outlined),
-                  label: 'أفلام',
+                  icon: const Icon(Icons.movie_outlined),
+                  label: isAr ? 'أفلام' : 'Movies',
                 ),
-                BottomNavigationBarItem(icon: Icon(Icons.tv), label: 'مسلسلات'),
+                BottomNavigationBarItem(
+                  icon: const Icon(Icons.tv),
+                  label: isAr ? 'مسلسلات' : 'Series',
+                ),
+                BottomNavigationBarItem(
+                  icon: const Icon(Icons.settings_outlined),
+                  label: isAr ? 'إعدادات' : 'Settings',
+                ),
               ],
             ),
           ),

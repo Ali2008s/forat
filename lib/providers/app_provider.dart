@@ -18,6 +18,7 @@ class AppProvider extends ChangeNotifier {
   bool _isInitialized = false;
   bool _isLoggedIn = false;
   bool _isLoading = false;
+  String _locale = 'ar'; // ar or en
 
   // App Status from Firebase
   bool _maintenanceMode = false;
@@ -41,7 +42,9 @@ class AppProvider extends ChangeNotifier {
   String _clientName = '';
   String _serverHost = '';
   Map<String, dynamic>? _userInfo;
-  Map<String, dynamic>? _subscriberData;
+
+  // Servers from Admin Panel
+  List<Map<String, dynamic>> _serversList = [];
 
   // Xtream Data
   List<dynamic> _liveCategories = [];
@@ -52,12 +55,14 @@ class AppProvider extends ChangeNotifier {
   StreamSubscription? _appStatusSub;
   StreamSubscription? _updateInfoSub;
   StreamSubscription? _settingsSub;
+  StreamSubscription? _serversSub;
 
   // ─── Getters ────────────────────────────────────────────────
   bool get isDarkMode => _isDarkMode;
   bool get isInitialized => _isInitialized;
   bool get isLoggedIn => _isLoggedIn;
   bool get isLoading => _isLoading;
+  String get locale => _locale;
   bool get maintenanceMode => _maintenanceMode;
   bool get appKilled => _appKilled;
   String get maintenanceMessage => _maintenanceMessage;
@@ -79,6 +84,23 @@ class AppProvider extends ChangeNotifier {
   List<dynamic> get liveCategories => _liveCategories;
   List<dynamic> get vodCategories => _vodCategories;
   List<dynamic> get seriesCategories => _seriesCategories;
+  List<Map<String, dynamic>> get serversList => _serversList;
+
+  // ─── Theme Toggle ───────────────────────────────────────────
+  void toggleTheme() async {
+    _isDarkMode = !_isDarkMode;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('is_dark_mode', _isDarkMode);
+    notifyListeners();
+  }
+
+  // ─── Language Toggle ────────────────────────────────────────
+  void setLocale(String locale) async {
+    _locale = locale;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('locale', _locale);
+    notifyListeners();
+  }
 
   // ─── Firebase Initialization ────────────────────────────────
   bool _firebaseInitCalled = false;
@@ -86,6 +108,11 @@ class AppProvider extends ChangeNotifier {
   Future<void> initFirebase() async {
     if (_firebaseInitCalled) return;
     _firebaseInitCalled = true;
+
+    // Load saved preferences
+    final prefs = await SharedPreferences.getInstance();
+    _isDarkMode = prefs.getBool('is_dark_mode') ?? true;
+    _locale = prefs.getString('locale') ?? 'ar';
 
     // Listen to app status
     _appStatusSub = _firebase.appStatusStream.listen((snap) {
@@ -123,6 +150,18 @@ class AppProvider extends ChangeNotifier {
       }
     });
 
+    // Listen to servers list from admin
+    _serversSub = _firebase.serversStream.listen((snap) {
+      _serversList = [];
+      for (final doc in snap.docs) {
+        final d = doc.data() as Map<String, dynamic>;
+        if (d['status'] == 'active') {
+          _serversList.add({'id': doc.id, ...d});
+        }
+      }
+      notifyListeners();
+    });
+
     // Load saved credentials
     await _loadSavedCredentials();
     _isInitialized = true;
@@ -134,8 +173,10 @@ class AppProvider extends ChangeNotifier {
       _hasUpdate = false;
       return;
     }
-    _hasUpdate = _latestVersion != '1.0.0'; // Compare with current app version
+    _hasUpdate = _latestVersion != AppProvider._currentVersion;
   }
+
+  static const String _currentVersion = '1.0.0';
 
   // ─── Authentication ─────────────────────────────────────────
   Future<Map<String, dynamic>> login(
@@ -154,7 +195,9 @@ class AppProvider extends ChangeNotifier {
         notifyListeners();
         return {
           'success': false,
-          'error': 'بيانات الدخول غير صحيحة أو غير مسجلة في النظام',
+          'error': _locale == 'ar'
+              ? 'بيانات الدخول غير صحيحة أو غير مسجلة في النظام'
+              : 'Invalid credentials or not registered',
         };
       }
 
@@ -165,12 +208,16 @@ class AppProvider extends ChangeNotifier {
         if (subscriber['status'] == 'blocked') {
           return {
             'success': false,
-            'error': 'حسابك محظور. تواصل مع الدعم الفني',
+            'error': _locale == 'ar'
+                ? 'حسابك محظور. تواصل مع الدعم الفني'
+                : 'Your account is blocked. Contact support',
           };
         }
         return {
           'success': false,
-          'error': 'اشتراكك منتهي الصلاحية. يرجى التجديد',
+          'error': _locale == 'ar'
+              ? 'اشتراكك منتهي الصلاحية. يرجى التجديد'
+              : 'Your subscription has expired. Please renew',
         };
       }
 
@@ -182,7 +229,9 @@ class AppProvider extends ChangeNotifier {
         notifyListeners();
         return {
           'success': false,
-          'error': 'فشل الاتصال بالسيرفر. تأكد من الرابط',
+          'error': _locale == 'ar'
+              ? 'فشل الاتصال بالسيرفر. تأكد من الرابط'
+              : 'Failed to connect to server. Check the URL',
         };
       }
 
@@ -192,7 +241,6 @@ class AppProvider extends ChangeNotifier {
       _serverHost = serverHost;
       _clientName = subscriber['client_name'] ?? username;
       _userInfo = xtreamData['user_info'];
-      _subscriberData = subscriber;
       _isLoggedIn = true;
 
       // Save credentials
@@ -254,11 +302,13 @@ class AppProvider extends ChangeNotifier {
     _password = '';
     _serverHost = '';
     _userInfo = null;
-    _subscriberData = null;
     _clientName = '';
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    await prefs.remove('username');
+    await prefs.remove('password');
+    await prefs.remove('server_host');
+    await prefs.remove('is_logged_in');
 
     notifyListeners();
   }
@@ -269,6 +319,7 @@ class AppProvider extends ChangeNotifier {
     _appStatusSub?.cancel();
     _updateInfoSub?.cancel();
     _settingsSub?.cancel();
+    _serversSub?.cancel();
     super.dispose();
   }
 }

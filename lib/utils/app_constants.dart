@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-//  ForaTV - App Constants & Theme
+//  ForaTV - App Constants & Theme (Dark + Light)
 // ═══════════════════════════════════════════════════════════════
 
 import 'package:flutter/material.dart';
@@ -26,11 +26,16 @@ class AppColors {
   static const Color accent = Color(0xFF8B5CF6);
   static const Color cyan = Color(0xFF06B6D4);
 
-  // Backgrounds
+  // Dark Backgrounds
   static const Color bgDark = Color(0xFF050510);
   static const Color bgCard = Color(0xFF0F0F2D);
   static const Color bgCardLight = Color(0xFF1A1A3E);
   static const Color surface = Color(0xFF12122A);
+
+  // Light Backgrounds
+  static const Color bgLightPrimary = Color(0xFFF8F9FC);
+  static const Color bgLightCard = Color(0xFFFFFFFF);
+  static const Color bgLightSurface = Color(0xFFF1F3F8);
 
   // Status
   static const Color success = Color(0xFF22C55E);
@@ -128,5 +133,67 @@ class AppThemes {
     );
   }
 
-  static ThemeData get lightTheme => darkTheme; // Use dark only for IPTV app
+  static ThemeData get lightTheme {
+    return ThemeData(
+      brightness: Brightness.light,
+      primaryColor: AppColors.primary,
+      scaffoldBackgroundColor: AppColors.bgLightPrimary,
+      colorScheme: const ColorScheme.light(
+        primary: AppColors.primary,
+        secondary: AppColors.accent,
+        surface: AppColors.bgLightSurface,
+        error: AppColors.danger,
+      ),
+      textTheme: GoogleFonts.cairoTextTheme(ThemeData.light().textTheme),
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        titleTextStyle: GoogleFonts.cairo(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          color: Colors.black87,
+        ),
+        iconTheme: const IconThemeData(color: Colors.black87),
+      ),
+      cardTheme: CardThemeData(
+        color: AppColors.bgLightCard,
+        elevation: 2,
+        shadowColor: Colors.black12,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: GoogleFonts.cairo(
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
+          ),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.grey.shade100,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+        ),
+        labelStyle: GoogleFonts.cairo(color: Colors.grey.shade600),
+        hintStyle: GoogleFonts.cairo(color: Colors.grey.shade500),
+      ),
+    );
+  }
 }

@@ -58,13 +58,17 @@ class ForaTVApp extends StatelessWidget {
       minTextAdapt: true,
       splitScreenMode: true,
       builder: (context, child) {
-        return MaterialApp(
-          debugShowCheckedModeBanner: false,
-          title: AppConstants.appName,
-          theme: AppThemes.darkTheme,
-          darkTheme: AppThemes.darkTheme,
-          themeMode: ThemeMode.dark,
-          home: const SplashScreen(),
+        return Consumer<AppProvider>(
+          builder: (context, provider, _) {
+            return MaterialApp(
+              debugShowCheckedModeBanner: false,
+              title: AppConstants.appName,
+              theme: AppThemes.lightTheme,
+              darkTheme: AppThemes.darkTheme,
+              themeMode: provider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+              home: const SplashScreen(),
+            );
+          },
         );
       },
     );

@@ -72,6 +72,9 @@ class FirebaseService {
   }
 
   // ─── Servers ────────────────────────────────────────────────
+  Stream<QuerySnapshot> get serversStream =>
+      _db.collection(AppConstants.colServers).snapshots();
+
   Future<List<Map<String, dynamic>>> getActiveServers() async {
     try {
       final snap = await _db
