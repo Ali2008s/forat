@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../providers/app_provider.dart';
 import '../utils/app_constants.dart';
 import 'login_screen.dart';
@@ -133,7 +134,7 @@ class _SplashScreenState extends State<SplashScreen> {
                             ],
                           ),
                           child: const Icon(
-                            Icons.satellite_alt,
+                            Iconsax.monitor_recorder,
                             size: 60,
                             color: Colors.white,
                           ),

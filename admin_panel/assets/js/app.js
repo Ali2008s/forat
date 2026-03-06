@@ -407,6 +407,8 @@ function initUpdatesPage() {
         if (typeEl) typeEl.innerHTML = d.force_update ? '<i class="fas fa-lock"></i> إجباري' : '<i class="fas fa-unlock"></i> اختياري';
         const dateEl = document.getElementById('currentUpdateDate');
         if (dateEl && d.updated_at) dateEl.innerHTML = '<i class="fas fa-calendar"></i> ' + new Date(d.updated_at.seconds * 1000).toLocaleDateString('ar-SA');
+        const cancelBtn = document.getElementById('cancelUpdateBtn');
+        if (cancelBtn) cancelBtn.style.display = 'inline-flex';
     });
     // Load update history
     db.collection('update_history').orderBy('pushed_at', 'desc').limit(10).onSnapshot(snap => {
@@ -426,6 +428,9 @@ function initUpdatesPage() {
 function setDefaultUpdateUI() {
     const el = document.getElementById('currentVersion'); if (el) el.textContent = '--';
     const n = document.getElementById('currentUpdateNotes'); if (n) n.textContent = 'لم يتم إرسال أي تحديث بعد';
+    const t = document.getElementById('currentUpdateType'); if (t) t.innerHTML = '<i class="fas fa-info-circle"></i> --';
+    const d = document.getElementById('currentUpdateDate'); if (d) d.innerHTML = '<i class="fas fa-calendar"></i> --';
+    const b = document.getElementById('cancelUpdateBtn'); if (b) b.style.display = 'none';
 }
 
 async function pushUpdate() {
@@ -445,6 +450,17 @@ async function pushUpdate() {
         clearUpdateForm();
     } catch (e) { showToast('error', 'خطأ', e.message); }
     btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> إرسال التحديث';
+}
+
+async function cancelUpdate() {
+    showConfirm('إلغاء التحديث', 'هل أنت متأكد من حذف التحديث الحالي؟ لن يتلقى المستخدمون أي إشعار بالتحديث.', async () => {
+        try {
+            await db.collection('app_config').doc('update_info').delete();
+            showToast('success', 'تم الإلغاء', 'تم حذف التحديث الحالي بنجاح');
+        } catch (e) {
+            showToast('error', 'خطأ', e.message);
+        }
+    });
 }
 
 function clearUpdateForm() {

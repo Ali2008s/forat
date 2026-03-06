@@ -9,8 +9,15 @@
         <span class="ver-number" id="currentVersion">--</span>
     </div>
     <div class="update-details">
-        <h3>الإصدار الحالي للتطبيق</h3>
-        <p id="currentUpdateNotes">جاري تحميل بيانات التحديث...</p>
+        <div class="update-header">
+            <div>
+                <h3>الإصدار الحالي للتطبيق</h3>
+                <p id="currentUpdateNotes">جاري تحميل بيانات التحديث...</p>
+            </div>
+            <button class="btn btn-ghost text-danger btn-sm" onclick="cancelUpdate()" title="إلغاء التحديث" id="cancelUpdateBtn" style="display:none">
+                <i class="fas fa-trash-alt"></i> حذف التحديث
+            </button>
+        </div>
         <div class="update-meta">
             <span id="currentUpdateType"><i class="fas fa-info-circle"></i> --</span>
             <span id="currentUpdateDate"><i class="fas fa-calendar"></i> --</span>

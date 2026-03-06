@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../providers/app_provider.dart';
 import '../utils/app_constants.dart';
+import '../utils/tv_focus_helper.dart';
 
 class MaintenanceScreen extends StatelessWidget {
   final bool isKilled;
@@ -44,7 +46,7 @@ class MaintenanceScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(30),
                         ),
                         child: Icon(
-                          isKilled ? Icons.power_off : Icons.build_circle,
+                          isKilled ? Iconsax.slash : Iconsax.setting,
                           size: 50,
                           color: isKilled
                               ? AppColors.danger
@@ -92,7 +94,7 @@ class MaintenanceScreen extends StatelessWidget {
                       children: [
                         if (provider.telegramLink.isNotEmpty)
                           _buildSupportBtn(
-                            Icons.telegram,
+                            Iconsax.send_2,
                             'تيليجرام',
                             AppColors.info,
                             provider.telegramLink,
@@ -100,7 +102,7 @@ class MaintenanceScreen extends StatelessWidget {
                         const SizedBox(width: 15),
                         if (provider.whatsappLink.isNotEmpty)
                           _buildSupportBtn(
-                            Icons.chat,
+                            Iconsax.messages_3,
                             'واتساب',
                             AppColors.success,
                             provider.whatsappLink,
@@ -122,15 +124,22 @@ class MaintenanceScreen extends StatelessWidget {
     Color color,
     String url,
   ) {
-    return OutlinedButton.icon(
-      onPressed: () =>
+    return TVFocusable(
+      borderRadius: 12,
+      onSelect: () =>
           launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
-      icon: Icon(icon, size: 18, color: color),
-      label: Text(label, style: TextStyle(color: color, fontSize: 13)),
-      style: OutlinedButton.styleFrom(
-        side: BorderSide(color: color.withValues(alpha: 0.3)),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: OutlinedButton.icon(
+        onPressed: () =>
+            launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+        icon: Icon(icon, size: 18, color: color),
+        label: Text(label, style: TextStyle(color: color, fontSize: 13)),
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: color.withValues(alpha: 0.3)),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
       ),
     );
   }

@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/firebase_service.dart';
 import '../services/xtream_service.dart';
+import '../utils/app_constants.dart';
 
 class AppProvider extends ChangeNotifier {
   final FirebaseService _firebase = FirebaseService();
@@ -173,10 +174,8 @@ class AppProvider extends ChangeNotifier {
       _hasUpdate = false;
       return;
     }
-    _hasUpdate = _latestVersion != AppProvider._currentVersion;
+    _hasUpdate = _latestVersion != AppConstants.appVersion;
   }
-
-  static const String _currentVersion = '1.0.0';
 
   // ─── Authentication ─────────────────────────────────────────
   Future<Map<String, dynamic>> login(
@@ -256,6 +255,60 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
+  // ─── Direct Login (Custom Server – bypass Firebase) ─────────
+  /// يُستخدم عند اختيار المستخدم "لدي سيرفر خاص" – لا يتم التحقق من Firebase
+  Future<Map<String, dynamic>> loginDirect(
+    String username,
+    String password,
+    String serverHost,
+  ) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      _xtream.setCredentials(serverHost, username, password);
+      final xtreamData = await _xtream.authenticate();
+      if (xtreamData == null) {
+        _isLoading = false;
+        notifyListeners();
+        return {
+          'success': false,
+          'error': _locale == 'ar'
+              ? 'فشل الاتصال بالسيرفر. تأكد من الرابط واليوزر والباسورد'
+              : 'Failed to connect to server. Check URL/username/password',
+        };
+      }
+
+      // Success! – direct Xtream login
+      _username = username;
+      _password = password;
+      _serverHost = serverHost;
+      final userInfo = xtreamData['user_info'] as Map<String, dynamic>? ?? {};
+      _clientName = userInfo['username']?.toString() ?? username;
+      _userInfo = userInfo;
+      _isLoggedIn = true;
+
+      await _saveCredentials();
+      // Save flag so auto-login uses direct path
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('is_direct_login', true);
+
+      _isLoading = false;
+      notifyListeners();
+      return {'success': true};
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      return {'success': false, 'error': 'حدث خطأ غير متوقع: $e'};
+    }
+  }
+
+  // Helper check for direct login state
+  Future<bool> get isDirectLoginStored async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('is_direct_login') ?? false;
+  }
+
   // ─── Categories Loading ─────────────────────────────────────
   Future<void> loadCategories() async {
     _liveCategories = await _xtream.getLiveCategories();
@@ -289,9 +342,19 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<bool> tryAutoLogin() async {
-    if (_username.isEmpty || _password.isEmpty || _serverHost.isEmpty)
+    if (_username.isEmpty || _password.isEmpty || _serverHost.isEmpty) {
       return false;
-    final result = await login(_username, _password, _serverHost);
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final isDirect = prefs.getBool('is_direct_login') ?? false;
+
+    final Map<String, dynamic> result;
+    if (isDirect) {
+      result = await loginDirect(_username, _password, _serverHost);
+    } else {
+      result = await login(_username, _password, _serverHost);
+    }
     return result['success'] == true;
   }
 
@@ -309,6 +372,7 @@ class AppProvider extends ChangeNotifier {
     await prefs.remove('password');
     await prefs.remove('server_host');
     await prefs.remove('is_logged_in');
+    await prefs.remove('is_direct_login');
 
     notifyListeners();
   }

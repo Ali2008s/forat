@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'providers/app_provider.dart';
+import 'providers/download_provider.dart';
 import 'utils/app_constants.dart';
 import 'screens/splash_screen.dart';
 
@@ -23,26 +24,35 @@ void main() async {
     ),
   );
 
-  // Initialize Firebase
+  // Initialize Firebase safely
   try {
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: "AIzaSyCATn7lwg2x5kxEkfrGpW4UbRlc7KpHEDg",
-        authDomain: "upload-92830.firebaseapp.com",
-        projectId: "upload-92830",
-        storageBucket: "upload-92830.appspot.com",
-        messagingSenderId: "100060804942",
-        appId: "1:100060804942:web:3b7e88d9261d4cb6a4901f",
-        measurementId: "G-1ZGTVPHKL1",
-      ),
-    );
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: const FirebaseOptions(
+          apiKey: "AIzaSyCATn7lwg2x5kxEkfrGpW4UbRlc7KpHEDg",
+          authDomain: "upload-92830.firebaseapp.com",
+          projectId: "upload-92830",
+          storageBucket: "upload-92830.appspot.com",
+          messagingSenderId: "100060804942",
+          appId: "1:100060804942:web:3b7e88d9261d4cb6a4901f",
+          measurementId: "G-1ZGTVPHKL1",
+        ),
+      );
+    }
   } catch (e) {
-    debugPrint('Firebase initialization failed: $e');
+    if (e.toString().contains('duplicate-app')) {
+      debugPrint('Firebase already initialized');
+    } else {
+      debugPrint('Firebase initialization error: $e');
+    }
   }
 
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => AppProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AppProvider()),
+        ChangeNotifierProvider(create: (_) => DownloadProvider()),
+      ],
       child: const ForaTVApp(),
     ),
   );

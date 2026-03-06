@@ -7,6 +7,13 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+List<dynamic> _parseList(String text) => jsonDecode(text) as List<dynamic>;
+Map<String, dynamic>? _parseMap(String text) {
+  final res = jsonDecode(text);
+  if (res == null) return null;
+  return res as Map<String, dynamic>;
+}
+
 class XtreamService {
   String _host = '';
   String _username = '';
@@ -27,7 +34,7 @@ class XtreamService {
   // ─── Authentication ─────────────────────────────────────────
   Future<Map<String, dynamic>?> authenticate() async {
     try {
-      final url = '$baseUrl';
+      final url = baseUrl;
       final response = await http
           .get(Uri.parse(url))
           .timeout(const Duration(seconds: 10));
@@ -51,7 +58,9 @@ class XtreamService {
       final response = await http
           .get(Uri.parse(url))
           .timeout(const Duration(seconds: 10));
-      if (response.statusCode == 200) return json.decode(response.body);
+      if (response.statusCode == 200) {
+        return await compute(_parseList, response.body);
+      }
       return [];
     } catch (e) {
       debugPrint('Error getting live categories: $e');
@@ -66,7 +75,9 @@ class XtreamService {
       final response = await http
           .get(Uri.parse(url))
           .timeout(const Duration(seconds: 15));
-      if (response.statusCode == 200) return json.decode(response.body);
+      if (response.statusCode == 200) {
+        return await compute(_parseList, response.body);
+      }
       return [];
     } catch (e) {
       debugPrint('Error getting live streams: $e');
@@ -81,7 +92,9 @@ class XtreamService {
       final response = await http
           .get(Uri.parse(url))
           .timeout(const Duration(seconds: 10));
-      if (response.statusCode == 200) return json.decode(response.body);
+      if (response.statusCode == 200) {
+        return await compute(_parseList, response.body);
+      }
       return [];
     } catch (e) {
       debugPrint('Error getting VOD categories: $e');
@@ -96,7 +109,9 @@ class XtreamService {
       final response = await http
           .get(Uri.parse(url))
           .timeout(const Duration(seconds: 15));
-      if (response.statusCode == 200) return json.decode(response.body);
+      if (response.statusCode == 200) {
+        return await compute(_parseList, response.body);
+      }
       return [];
     } catch (e) {
       debugPrint('Error getting VOD streams: $e');
@@ -110,7 +125,9 @@ class XtreamService {
       final response = await http
           .get(Uri.parse(url))
           .timeout(const Duration(seconds: 10));
-      if (response.statusCode == 200) return json.decode(response.body);
+      if (response.statusCode == 200) {
+        return await compute(_parseMap, response.body);
+      }
       return null;
     } catch (e) {
       debugPrint('Error getting VOD info: $e');
@@ -125,7 +142,9 @@ class XtreamService {
       final response = await http
           .get(Uri.parse(url))
           .timeout(const Duration(seconds: 10));
-      if (response.statusCode == 200) return json.decode(response.body);
+      if (response.statusCode == 200) {
+        return await compute(_parseList, response.body);
+      }
       return [];
     } catch (e) {
       debugPrint('Error getting series categories: $e');
@@ -140,7 +159,9 @@ class XtreamService {
       final response = await http
           .get(Uri.parse(url))
           .timeout(const Duration(seconds: 15));
-      if (response.statusCode == 200) return json.decode(response.body);
+      if (response.statusCode == 200) {
+        return await compute(_parseList, response.body);
+      }
       return [];
     } catch (e) {
       debugPrint('Error getting series: $e');
@@ -154,7 +175,9 @@ class XtreamService {
       final response = await http
           .get(Uri.parse(url))
           .timeout(const Duration(seconds: 10));
-      if (response.statusCode == 200) return json.decode(response.body);
+      if (response.statusCode == 200) {
+        return await compute(_parseMap, response.body);
+      }
       return null;
     } catch (e) {
       debugPrint('Error getting series info: $e');
