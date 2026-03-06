@@ -12,4 +12,12 @@
 -dontwarn org.videolan.libvlc.**
 -dontwarn org.videolan.vlc.**
 
+# Play Core (Flutter Embedding) - Ignore missing classes
+-dontwarn com.google.android.play.core.**
+
+# General Flutter & Android rules
+-keep class androidx.lifecycle.DefaultLifecycleObserver
+-dontwarn io.flutter.embedding.engine.deferredcomponents.PlayStoreDeferredComponentManager
+-dontwarn io.flutter.embedding.android.FlutterPlayStoreSplitApplication
+
 # Add any other third-party library rules here if needed
